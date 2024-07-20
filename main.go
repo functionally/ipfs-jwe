@@ -14,20 +14,20 @@ import (
 func readKey(keyFile string) (jwk.Key, map[string]interface{}, error) {
   keyBuf, _ := ioutil.ReadFile(keyFile)
   var meta map[string]interface{}
-  if err := json.Unmarshal(keyBuf, &meta); err != nil {
-    return nil, nil, err
+  if jsonErr := json.Unmarshal(keyBuf, &meta); jsonErr != nil {
+    return nil, nil, jsonErr
   }
-  key, err := jwk.ParseKey(keyBuf)
-  if err != nil {
-    return nil, meta, err
+  key, keyErr := jwk.ParseKey(keyBuf)
+  if keyErr != nil {
+    return nil, meta, keyErr
   }
   return key, meta, nil
 }
 
 func decrypt(key jwk.Key, cipherBuf [] byte) ([]byte, error) {
   var rawkey interface{}
-  if err := key.Raw(&rawkey); err != nil {
-    return nil, err
+  if keyErr := key.Raw(&rawkey); keyErr != nil {
+    return nil, keyErr
   }
   return jwe.Decrypt(cipherBuf, jwe.WithKey(key.Algorithm(), rawkey))
 }
@@ -51,9 +51,11 @@ func main () {
 
   key, meta, _ := readKey(jwkFile)
 
-  h, _ := os.Open(jweFile)
-  plainBuf, _ := decryptCompressed(key, h)
+  jweReader, _ := os.Open(jweFile)
+  plainBuf, _ := decryptCompressed(key, jweReader)
+
   ioutil.WriteFile("tmp.bin", plainBuf, 0640)
+
   ipfs, _ := meta["ipfs"].(map[string]interface{})
   cid, _ := ipfs["cid"].(string)
   fmt.Printf("%s\n", cid)
