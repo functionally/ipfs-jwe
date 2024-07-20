@@ -3,10 +3,12 @@ package main
 import (
   "compress/gzip"
   "encoding/json"
+  "errors"
   "fmt"
   "io"
   "io/ioutil"
   "os"
+  "github.com/ipfs/go-cid"
   "github.com/lestrrat-go/jwx/v2/jwe"
   "github.com/lestrrat-go/jwx/v2/jwk"
 )
@@ -44,6 +46,22 @@ func decryptCompressed(key jwk.Key, cipherReader io.Reader) ([]byte, error) {
   return decrypt(key, cipherBuf)
 }
 
+func getCid(meta map[string]interface{}) (*cid.Cid, error) {
+  ipfs, ipfsExists := meta["ipfs"].(map[string]interface{})
+  if !ipfsExists {
+    return nil, errors.New("Key \"ipfs\" not found.")
+  }
+  cidString, cidExists := ipfs["cid"].(string)
+  if !cidExists {
+    return nil, errors.New("Key \"ipfs.cid\" not found.")
+  }
+  cid, cidErr := cid.Decode(cidString)
+  if cidErr != nil {
+    return nil, cidErr
+  }
+  return &cid, nil
+}
+
 func main () {
 
   var jwkFile = "./tmp.jwk"
@@ -56,7 +74,6 @@ func main () {
 
   ioutil.WriteFile("tmp.bin", plainBuf, 0640)
 
-  ipfs, _ := meta["ipfs"].(map[string]interface{})
-  cid, _ := ipfs["cid"].(string)
+  cid, _ := getCid(meta)
   fmt.Printf("%s\n", cid)
 }
