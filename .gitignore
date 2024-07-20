@@ -1,0 +1,6 @@
+tmp/
+*.tmp
+*.log
+*.sw?
+tmp.*
+/gomod2nix-template
