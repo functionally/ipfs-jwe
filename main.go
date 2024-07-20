@@ -2,28 +2,26 @@ package main
 
 import (
   "compress/gzip"
-  "encoding/json"
+  "context"
   "errors"
-  "fmt"
   "io"
   "io/ioutil"
-  "os"
   "github.com/ipfs/go-cid"
+  "github.com/ipfs/boxo/files"
+  "github.com/ipfs/boxo/path"
+  "github.com/ipfs/kubo/client/rpc"
   "github.com/lestrrat-go/jwx/v2/jwe"
   "github.com/lestrrat-go/jwx/v2/jwk"
+  ma "github.com/multiformats/go-multiaddr"
 )
 
-func readKey(keyFile string) (jwk.Key, map[string]interface{}, error) {
+func readKey(keyFile string) (jwk.Key, error) {
   keyBuf, _ := ioutil.ReadFile(keyFile)
-  var meta map[string]interface{}
-  if jsonErr := json.Unmarshal(keyBuf, &meta); jsonErr != nil {
-    return nil, nil, jsonErr
-  }
   key, keyErr := jwk.ParseKey(keyBuf)
   if keyErr != nil {
-    return nil, meta, keyErr
+    return nil, keyErr
   }
-  return key, meta, nil
+  return key, nil
 }
 
 func decrypt(key jwk.Key, cipherBuf [] byte) ([]byte, error) {
@@ -46,14 +44,18 @@ func decryptCompressed(key jwk.Key, cipherReader io.Reader) ([]byte, error) {
   return decrypt(key, cipherBuf)
 }
 
-func getCid(meta map[string]interface{}) (*cid.Cid, error) {
+func getCid(ctx context.Context, key jwk.Key) (*cid.Cid, error) {
+  meta, metaErr := key.AsMap(ctx)
+  if metaErr != nil {
+    return nil, metaErr
+  }
   ipfs, ipfsExists := meta["ipfs"].(map[string]interface{})
   if !ipfsExists {
-    return nil, errors.New("Key \"ipfs\" not found.")
+    return nil, errors.New("Metadata key `ipfs` not found.")
   }
   cidString, cidExists := ipfs["cid"].(string)
   if !cidExists {
-    return nil, errors.New("Key \"ipfs.cid\" not found.")
+    return nil, errors.New("Metadata key `ipfs.cid` not found.")
   }
   cid, cidErr := cid.Decode(cidString)
   if cidErr != nil {
@@ -62,18 +64,60 @@ func getCid(meta map[string]interface{}) (*cid.Cid, error) {
   return &cid, nil
 }
 
+func fetchCid(ctx context.Context, node *rpc.HttpApi, cid cid.Cid) (io.Reader, error) {
+  path := path.FromCid(cid)
+  file, ipfsErr := node.Unixfs().Get(ctx, path)
+  if ipfsErr != nil {
+    return nil, ipfsErr
+  }
+  reader, fileExists := file.(files.File)
+  if !fileExists {
+      return nil, errors.New("Not a `files.File`.")
+  }
+  return reader, nil
+}
+
+func fetchCompressedEncrypted(ctx context.Context, node *rpc.HttpApi, key jwk.Key) ([]byte, error) {
+  theCid, cidErr := getCid(ctx, key)
+  if cidErr != nil {
+    return nil, cidErr
+  }
+  jweReader, fetchErr := fetchCid(ctx, node, *theCid)
+  if fetchErr != nil {
+    return nil, fetchErr
+  }
+  return decryptCompressed(key, jweReader)
+}
+
+func connectIpfs(api string) (*rpc.HttpApi, error) {
+  addr, addrErr := ma.NewMultiaddr(api)
+    if addrErr != nil {
+        return nil, addrErr
+    }
+  return rpc.NewApi(addr)
+}
+
 func main () {
 
   var jwkFile = "./tmp.jwk"
-  var jweFile = "./tmp.jwe.gz"
+  var binFile = ".tmp/bin"
+  var api = "/ip4/192.168.0.9/tcp/5001"
 
-  key, meta, _ := readKey(jwkFile)
+  ctx := context.Background()
+  node, connectErr := connectIpfs(api)
+  if connectErr != nil {
+      panic(connectErr)
+  }
 
-  jweReader, _ := os.Open(jweFile)
-  plainBuf, _ := decryptCompressed(key, jweReader)
+  key, keyErr := readKey(jwkFile)
+  if keyErr != nil {
+    panic(keyErr)
+  }
 
-  ioutil.WriteFile("tmp.bin", plainBuf, 0640)
+  plainBuf, fetchErr := fetchCompressedEncrypted(ctx, node, key)
+  if fetchErr != nil {
+    panic(fetchErr)
+  }
 
-  cid, _ := getCid(meta)
-  fmt.Printf("%s\n", cid)
+  ioutil.WriteFile(binFile, plainBuf, 0640)
 }
