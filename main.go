@@ -1,9 +1,12 @@
 package main
 
 import (
+  "compress/gzip"
   "encoding/json"
   "fmt"
+  "io"
   "io/ioutil"
+  "os"
   "github.com/lestrrat-go/jwx/v2/jwe"
   "github.com/lestrrat-go/jwx/v2/jwk"
 )
@@ -29,17 +32,29 @@ func decrypt(key jwk.Key, cipherBuf [] byte) ([]byte, error) {
   return jwe.Decrypt(cipherBuf, jwe.WithKey(key.Algorithm(), rawkey))
 }
 
+func decryptCompressed(key jwk.Key, cipherReader io.Reader) ([]byte, error) {
+  gzipReader, gzipErr := gzip.NewReader(cipherReader)
+  if gzipErr != nil {
+    return nil, gzipErr
+  }
+  cipherBuf, readErr := ioutil.ReadAll(gzipReader)
+  if readErr != nil {
+    return nil, readErr
+  }
+  return decrypt(key, cipherBuf)
+}
+
 func main () {
 
   var jwkFile = "./tmp.jwk"
-  var jweFile = "./tmp.jwe"
+  var jweFile = "./tmp.jwe.gz"
 
   key, meta, _ := readKey(jwkFile)
 
-  cipherBuf, _ := ioutil.ReadFile(jweFile)
-  plainBuf, _ := decrypt(key, cipherBuf)
+  h, _ := os.Open(jweFile)
+  plainBuf, _ := decryptCompressed(key, h)
   ioutil.WriteFile("tmp.bin", plainBuf, 0640)
   ipfs, _ := meta["ipfs"].(map[string]interface{})
   cid, _ := ipfs["cid"].(string)
-  fmt.Print(cid)
+  fmt.Printf("%s\n", cid)
 }
