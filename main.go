@@ -2,25 +2,31 @@ package main
 
 import (
   "bufio"
+  "bytes"
   "compress/gzip"
   "context"
   "errors"
   "fmt"
   "io"
   "io/ioutil"
+  "log"
+  "net"
   "os"
-  "github.com/ipfs/go-cid"
+  "strconv"
+  "strings"
   "github.com/ipfs/boxo/files"
   "github.com/ipfs/boxo/path"
+  "github.com/ipfs/go-cid"
   "github.com/ipfs/kubo/client/rpc"
   "github.com/lestrrat-go/jwx/v2/jwe"
   "github.com/lestrrat-go/jwx/v2/jwk"
+  "github.com/urfave/cli/v2"
   ma "github.com/multiformats/go-multiaddr"
 )
 
 func readKey(keyFile string) (jwk.Key, error) {
-  keyBuf, _ := ioutil.ReadFile(keyFile)
-  key, keyErr := jwk.ParseKey(keyBuf)
+  var keyBuf, _ = ioutil.ReadFile(keyFile)
+  var key, keyErr = jwk.ParseKey(keyBuf)
   if keyErr != nil {
     return nil, keyErr
   }
@@ -36,11 +42,11 @@ func decrypt(key jwk.Key, cipherBuf [] byte) ([]byte, error) {
 }
 
 func decryptCompressed(key jwk.Key, cipherReader io.Reader) ([]byte, error) {
-  gzipReader, gzipErr := gzip.NewReader(cipherReader)
+  var gzipReader, gzipErr = gzip.NewReader(cipherReader)
   if gzipErr != nil {
     return nil, gzipErr
   }
-  cipherBuf, readErr := ioutil.ReadAll(gzipReader)
+  var cipherBuf, readErr = ioutil.ReadAll(gzipReader)
   if readErr != nil {
     return nil, readErr
   }
@@ -48,19 +54,19 @@ func decryptCompressed(key jwk.Key, cipherReader io.Reader) ([]byte, error) {
 }
 
 func getCid(ctx context.Context, key jwk.Key) (*cid.Cid, error) {
-  meta, metaErr := key.AsMap(ctx)
+  var meta, metaErr = key.AsMap(ctx)
   if metaErr != nil {
     return nil, metaErr
   }
-  ipfs, ipfsExists := meta["ipfs"].(map[string]interface{})
+  var ipfs, ipfsExists = meta["ipfs"].(map[string]interface{})
   if !ipfsExists {
     return nil, errors.New("Metadata key `ipfs` not found.")
   }
-  cidString, cidExists := ipfs["cid"].(string)
+  var cidString, cidExists = ipfs["cid"].(string)
   if !cidExists {
     return nil, errors.New("Metadata key `ipfs.cid` not found.")
   }
-  cid, cidErr := cid.Decode(cidString)
+  var cid, cidErr = cid.Decode(cidString)
   if cidErr != nil {
     return nil, cidErr
   }
@@ -68,11 +74,11 @@ func getCid(ctx context.Context, key jwk.Key) (*cid.Cid, error) {
 }
 
 func getMime(ctx context.Context, key jwk.Key) (*string, error) {
-  meta, metaErr := key.AsMap(ctx)
+  var meta, metaErr = key.AsMap(ctx)
   if metaErr != nil {
     return nil, metaErr
   }
-  mime, mimeExists := meta["mime"].(string)
+  var mime, mimeExists = meta["mime"].(string)
   if !mimeExists {
     return nil, errors.New("Metadata key `mime` not found.")
   }
@@ -80,12 +86,12 @@ func getMime(ctx context.Context, key jwk.Key) (*string, error) {
 }
 
 func fetchCid(ctx context.Context, node *rpc.HttpApi, cid cid.Cid) (io.Reader, error) {
-  path := path.FromCid(cid)
-  file, ipfsErr := node.Unixfs().Get(ctx, path)
+  var path = path.FromCid(cid)
+  var file, ipfsErr = node.Unixfs().Get(ctx, path)
   if ipfsErr != nil {
     return nil, ipfsErr
   }
-  reader, fileExists := file.(files.File)
+  var reader, fileExists = file.(files.File)
   if !fileExists {
     return nil, errors.New("Not a `files.File`.")
   }
@@ -93,11 +99,11 @@ func fetchCid(ctx context.Context, node *rpc.HttpApi, cid cid.Cid) (io.Reader, e
 }
 
 func fetchCompressedEncrypted(ctx context.Context, node *rpc.HttpApi, key jwk.Key) ([]byte, error) {
-  theCid, cidErr := getCid(ctx, key)
+  var cid, cidErr = getCid(ctx, key)
   if cidErr != nil {
     return nil, cidErr
   }
-  jweReader, fetchErr := fetchCid(ctx, node, *theCid)
+  var jweReader, fetchErr = fetchCid(ctx, node, *cid)
   if fetchErr != nil {
     return nil, fetchErr
   }
@@ -105,33 +111,33 @@ func fetchCompressedEncrypted(ctx context.Context, node *rpc.HttpApi, key jwk.Ke
 }
 
 func geminiError(code int, err error) []byte {
-  status := fmt.Sprintf("%d %s\r\n", code, err.Error())
+  var status = fmt.Sprintf("%d %s\r\n", code, err.Error())
   return []byte(status)
 }
 
 func handleGemini(ctx context.Context, node *rpc.HttpApi, keys map[string]jwk.Key, kid string) []byte {
 
-  key, keyErr := keys[kid]
+  var key, keyErr = keys[kid]
   if !keyErr {
     return geminiError(51, errors.New("Key `" + kid + "` not found."))
   }
 
-  mime, mimeErr := getMime(ctx, key)
+  var mime, mimeErr = getMime(ctx, key)
   if mimeErr != nil {
     return geminiError(42, mimeErr)
   }
 
-  plainBuf, fetchErr := fetchCompressedEncrypted(ctx, node, key)
+  var plainBuf, fetchErr = fetchCompressedEncrypted(ctx, node, key)
   if fetchErr != nil {
     return geminiError(42, fetchErr)
   }
 
-  status := fmt.Sprintf("%d %s\r\n\r\n", 20, *mime)
+  var status = fmt.Sprintf("%d %s\r\n", 20, *mime)
   return append([]byte(status), plainBuf...)
 }
 
-func connectIpfs(api string) (*rpc.HttpApi, error) {
-  addr, addrErr := ma.NewMultiaddr(api)
+func connectIpfs(apiAddr string) (*rpc.HttpApi, error) {
+  var addr, addrErr = ma.NewMultiaddr(apiAddr)
     if addrErr != nil {
         return nil, addrErr
     }
@@ -140,17 +146,19 @@ func connectIpfs(api string) (*rpc.HttpApi, error) {
 
 func readKeys(keysFile string) (map[string]jwk.Key, error) {
 
-  handle, openErr := os.Open(keysFile)
+  var handle, openErr = os.Open(keysFile)
   if openErr != nil {
     return nil, openErr
   }
   defer handle.Close()
 
-  keys := make(map[string]jwk.Key)
-  scanner := bufio.NewScanner(handle)
+  var keys = make(map[string]jwk.Key)
+  var scanner = bufio.NewScanner(handle)
+  const maxLineLength = 250 * 1024
+  scanner.Buffer(make([]byte, 0, maxLineLength), maxLineLength)
   for scanner.Scan() {
-    line := scanner.Bytes()
-    key, keyErr := jwk.ParseKey(line)
+    var line = scanner.Bytes()
+    var key, keyErr = jwk.ParseKey(line)
     if keyErr != nil {
       return nil, keyErr
     }
@@ -160,28 +168,53 @@ func readKeys(keysFile string) (map[string]jwk.Key, error) {
   return keys, nil
 }
 
-func cgiGemini(keysFile string, api string) {
+func decode(key jwk.Key, apiAddr string, outFile string) error {
+  var ctx = context.Background()
+  var node, ipfsErr = connectIpfs(apiAddr)
+  if ipfsErr != nil {
+    return ipfsErr
+  }
+  var plainBuf, fetchErr = fetchCompressedEncrypted(ctx, node, key)
+  if fetchErr != nil {
+    return fetchErr
+  }
+  return ioutil.WriteFile(outFile, plainBuf, 0640)
+}
 
-  keys, keysErr := readKeys("./tmp.keys")
+func fetch(keysFile string, apiAddr string, kid string, outFile string) error {
+  var keys, keysErr = readKeys(keysFile)
   if keysErr != nil {
-    os.Stdout.Write(geminiError(42, errors.New("Failed reading keys file.")))
+    return keysErr
+  }
+  var key, keyErr = keys[kid]
+  if !keyErr {
+    return errors.New("Key `" + kid + "` not found.")
+  }
+  return decode(key, apiAddr, outFile)
+}
+
+func cgiGemini(keysFile string, apiAddr string) {
+
+  var keys, keysErr = readKeys(keysFile)
+  if keysErr != nil {
+    os.Stdout.Write(geminiError(42, keysErr))
     return
   }
 
-  ctx := context.Background()
-  node, connectErr := connectIpfs(api)
-  if connectErr != nil {
-    os.Stdout.Write(geminiError(42, errors.New("Filed to connect to IPFS.")))
+  var ctx = context.Background()
+  var node, ipfsErr = connectIpfs(apiAddr)
+  if ipfsErr != nil {
+    os.Stdout.Write(geminiError(42, ipfsErr))
     return
   }
 
-  kid := os.Getenv("PATH_INFO")
+  var kid = os.Getenv("PATH_INFO")
   if kid == "" {
     os.Stdout.Write(geminiError(59, errors.New("Missing key.")))
     return
   } else {
-    response := handleGemini(ctx, node, keys, kid)
-    _, writeErr := os.Stdout.Write(response)
+    var response = handleGemini(ctx, node, keys, kid)
+    var _, writeErr = os.Stdout.Write(response)
     if writeErr != nil {
       os.Stdout.Write(geminiError(42, writeErr))
       return
@@ -190,6 +223,222 @@ func cgiGemini(keysFile string, api string) {
 
 }
 
+func parseSCGIHeaders(data []byte) map[string]string {
+    var headers = make(map[string]string)
+    var parts = bytes.Split(data, []byte{0})
+    for i := 0; i < len(parts)-1; i += 2 {
+        headers[string(parts[i])] = string(parts[i+1])
+    }
+    return headers
+}
+
+func handleScgiGemini(ctx context.Context, node *rpc.HttpApi, keys map[string]jwk.Key, conn net.Conn) {
+
+  defer conn.Close()
+
+  var reader = bufio.NewReader(conn)
+  var lengthStr, requestErr = reader.ReadString(':')
+  if requestErr != nil {
+    log.Printf("Failed reading request length: %v", requestErr)
+    conn.Write(geminiError(42, requestErr))
+    return
+  }
+  var length, lengthErr = strconv.Atoi(strings.TrimSuffix(lengthStr, ":"))
+  if lengthErr != nil {
+    log.Printf("Failed parsing request length: %v", lengthErr)
+    conn.Write(geminiError(42, lengthErr))
+    return
+  }
+  var headerData = make([]byte, length)
+  var _, headerErr = io.ReadFull(reader, headerData)
+  if headerErr != nil {
+    log.Printf("Failed reading request header data: %v", headerErr)
+    conn.Write(geminiError(42, headerErr))
+    return
+  }
+  var _, terminatorErr = reader.ReadByte()
+  if terminatorErr != nil {
+    log.Printf("Failed reading request header terminator: %v", terminatorErr)
+    conn.Write(geminiError(42, terminatorErr))
+    return
+  }
+
+  var headers = parseSCGIHeaders(headerData)
+
+  var kid, kidExists = headers["PATH_INFO"]
+  if !kidExists {
+    log.Printf("Missing key: %s", kid)
+    conn.Write(geminiError(59, errors.New("Missing key.")))
+    return
+  } else {
+    log.Printf("Key requested: %s", kid)
+    var response = handleGemini(ctx, node, keys, kid)
+    var _, writeErr = conn.Write(response)
+    if writeErr != nil {
+      log.Printf("Failed writing response: %v", writeErr)
+      conn.Write(geminiError(42, writeErr))
+      return
+    }
+    conn.Close()
+    log.Printf("Sent %d bytes", len(response))
+  }
+
+}
+
+func scgiGemini(keysFile string, apiAddr string, socketFile string) {
+
+  var keys, keysErr = readKeys(keysFile)
+  if keysErr != nil {
+    log.Fatalf("Failed to read keys file: %v", keysErr)
+    return
+  }
+  log.Printf("Read keys file: %s (%d keys)", keysFile, len(keys))
+
+  var ctx = context.Background()
+  var node, ipfsErr = connectIpfs(apiAddr)
+  if ipfsErr != nil {
+    log.Fatalf("Failed to connect to IPFS: %v", ipfsErr)
+  }
+  log.Printf("Connected to IPFS API: %s", apiAddr)
+
+  if _, socketMissing := os.Stat(socketFile); socketMissing == nil {
+    os.Remove(socketFile)
+  }
+  var listener, listenErr = net.Listen("unix", socketFile)
+  if listenErr != nil {
+    log.Fatalf("Failed to listen on socket: %v", listenErr)
+  }
+  defer listener.Close()
+  log.Printf("SCGI server listening on %s", listener.Addr().String())
+
+  for {
+    var conn, acceptErr = listener.Accept()
+    if acceptErr != nil {
+      log.Printf("Failed to accept connection: %v", acceptErr)
+        continue
+    }
+    go handleScgiGemini(ctx, node, keys, conn)
+  }
+
+}
+
 func main() {
-  cgiGemini("./tmp/keys", "/ip4/192.168.0.9/tcp/5001")
+
+  var apiAddr string
+  var keyFile string
+  var keysFile string
+  var kid string
+  var outFile string
+  var socketFile string
+  
+  app := &cli.App{
+    Name:  "ipfs-jwe",
+    Usage: "Decrypt IPFS JWE.",
+    Flags: []cli.Flag{
+      &cli.StringFlag{
+        Name: "ipfs-api",
+        Value: "/ip4/127.0.0.1/tcp/5001",
+        Usage: "Multi-address for IPFS API.",
+        Destination: &apiAddr,
+      },
+    },
+    Commands: []*cli.Command{
+      {
+        Name: "serve-csgi",
+        Usage: "Serve CSGI",
+        Flags: []cli.Flag{
+          &cli.StringFlag{
+            Name: "keys-file",
+            Value: "keys.jsonarray",
+            Usage: "Array of JSON JWK keys.",
+            Destination: &keysFile,
+          },
+          &cli.StringFlag{
+            Name: "socket-file",
+            Value: "ipfs-jwe-scgi.socket",
+            Usage: "SCGI socket path",
+            Destination: &socketFile,
+          },
+        },
+        Action: func(*cli.Context) error {
+          scgiGemini(keysFile, apiAddr, socketFile)
+          return nil
+        },
+      },
+      {
+       Name: "handle-sgi",
+       Usage: "Process SGI",
+         Flags: []cli.Flag{
+           &cli.StringFlag{
+             Name: "keys-file",
+             Usage: "Array of JSON JWK keys.",
+             Destination: &keysFile,
+           },
+         },
+         Action: func(*cli.Context) error {
+           cgiGemini(keysFile, apiAddr)
+           return nil
+         },
+      },
+      {
+        Name: "fetch",
+        Usage: "Fetch an encrypted IPFS document",
+        Flags: []cli.Flag{
+          &cli.StringFlag{
+            Name: "keys-file",
+            Usage: "Array of JSON JWK keys.",
+            Destination: &keysFile,
+          },
+          &cli.StringFlag{
+            Name: "kid",
+            Usage: "Key ID of document to be retrieved",
+            Destination: &kid,
+          },
+          &cli.StringFlag{
+            Name: "out-file",
+	    Value: "/dev/stdout",
+            Usage: "Path to the output file",
+            Destination: &outFile,
+          },
+	},
+        Action: func(*cli.Context) error {
+          return fetch(keysFile, apiAddr, kid, outFile)
+        },
+      },
+      {
+        Name: "decrypt",
+        Usage: "Decrypt an encrypted IPFS document",
+        Flags: []cli.Flag{
+          &cli.StringFlag{
+            Name: "key",
+            Usage: "JWK file",
+            Destination: &keyFile,
+          },
+          &cli.StringFlag{
+            Name: "kid",
+            Usage: "Key ID of document to be retrieved",
+            Destination: &kid,
+          },
+          &cli.StringFlag{
+            Name: "out-file",
+	    Value: "/dev/stdout",
+            Usage: "Path to the output file",
+            Destination: &outFile,
+          },
+        },
+        Action: func(*cli.Context) error {
+	  var key, keyErr = readKey(keyFile)
+	  if keyErr != nil {
+	    log.Fatalf("%v", keyErr)
+	  }
+          return decode(key, apiAddr, outFile)
+        },
+      },
+    },
+    }
+
+    if appErr := app.Run(os.Args); appErr != nil {
+      log.Fatalf("%v", appErr)
+    }
+
 }
