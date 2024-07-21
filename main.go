@@ -338,19 +338,19 @@ func main() {
 			&cli.StringFlag{
 				Name:        "ipfs-api",
 				Value:       "/ip4/127.0.0.1/tcp/5001",
-				Usage:       "Multi-address for IPFS API.",
+				Usage:       "Multi-address for IPFS API",
 				Destination: &apiAddr,
 			},
 		},
 		Commands: []*cli.Command{
 			{
-				Name:  "serve-csgi",
-				Usage: "Serve CSGI",
+				Name:  "serve-scgi",
+				Usage: "Serve SCGI.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "keys-file",
 						Value:       "keys.jsonarray",
-						Usage:       "Array of JSON JWK keys.",
+						Usage:       "Array of JSON JWK keys",
 						Destination: &keysFile,
 					},
 					&cli.StringFlag{
@@ -366,12 +366,12 @@ func main() {
 				},
 			},
 			{
-				Name:  "handle-sgi",
-				Usage: "Process SGI",
+				Name:  "process-sgi",
+				Usage: "Process SGI.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "keys-file",
-						Usage:       "Array of JSON JWK keys.",
+						Usage:       "Array of JSON JWK keys",
 						Destination: &keysFile,
 					},
 				},
@@ -381,12 +381,12 @@ func main() {
 				},
 			},
 			{
-				Name:  "fetch",
-				Usage: "Fetch an encrypted IPFS document",
+				Name:  "fetch-by-identifier",
+				Usage: "Fetch an encrypted IPFS document identified by it key ID.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "keys-file",
-						Usage:       "Array of JSON JWK keys.",
+						Usage:       "Array of JSON JWK keys",
 						Destination: &keysFile,
 					},
 					&cli.StringFlag{
@@ -406,8 +406,8 @@ func main() {
 				},
 			},
 			{
-				Name:  "decrypt",
-				Usage: "Decrypt an encrypted IPFS document",
+				Name:  "fetch-by-key",
+				Usage: "Fetch an encrypted IPFS document identified by a JWK file.",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:        "key",

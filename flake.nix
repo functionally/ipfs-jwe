@@ -16,10 +16,20 @@
           # The current default sdk for macOS fails to compile go projects, so we use a newer one for now.
           # This has no effect on other platforms.
           callPackage = pkgs.darwin.apple_sdk_11_0.callPackage or pkgs.callPackage;
+          app = callPackage ./. {
+            inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+          };
+          docker = pkgs.dockerTools.buildImage {
+            name = "ipfs-jwe";
+            config = {
+              Cmd = [ "${app}/bin/ipfs-jwe" ];
+            };
+          };
         in
         {
-          packages.default = callPackage ./. {
-            inherit (gomod2nix.legacyPackages.${system}) buildGoApplication;
+          packages = {
+            default = app;
+            inherit docker;
           };
           devShells.default = callPackage ./shell.nix {
             inherit (gomod2nix.legacyPackages.${system}) mkGoEnv gomod2nix;
