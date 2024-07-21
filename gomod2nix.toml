@@ -25,6 +25,9 @@ schema = 3
   [mod."github.com/coreos/go-systemd/v22"]
     version = "v22.5.0"
     hash = "sha256-E2zXikbmIQImghstLUWuey1YgA0Folu3F+fi5k4hCxA="
+  [mod."github.com/cpuguy83/go-md2man/v2"]
+    version = "v2.0.4"
+    hash = "sha256-pQ+H8Psh92KWTang8hK0cHFLomH+4X0rMMilIJUQ4Qc="
   [mod."github.com/crackcomm/go-gitignore"]
     version = "v0.0.0-20231225121904-e25f5bc08668"
     hash = "sha256-XsnVBh1ZQIQAVmJXdid/xd5ONtRTrCxSOftXzQ0FwzA="
@@ -367,6 +370,9 @@ schema = 3
   [mod."github.com/rs/cors"]
     version = "v1.10.1"
     hash = "sha256-um4INJM5/675MLK42npIsDbSQ1/Iy5ZiUNuAFReUfeM="
+  [mod."github.com/russross/blackfriday/v2"]
+    version = "v2.1.0"
+    hash = "sha256-R+84l1si8az5yDqd5CYcFrTyNZ1eSYlpXKq6nFt4OTQ="
   [mod."github.com/samber/lo"]
     version = "v1.39.0"
     hash = "sha256-bFJXbzFpUQM2xoNrHrlzn0RJZujd21H00zGBgo/JEb0="
@@ -376,6 +382,12 @@ schema = 3
   [mod."github.com/spaolacci/murmur3"]
     version = "v1.1.0"
     hash = "sha256-RWD4PPrlAsZZ8Xy356MBxpj+/NZI7w2XOU14Ob7/Y9M="
+  [mod."github.com/urfave/cli/v2"]
+    version = "v2.27.2"
+    hash = "sha256-P0yLmx2a2hIQjQ/RXKLG8ehI5eVivnettuMFr8MznFY="
+  [mod."github.com/urfave/cli/v3"]
+    version = "v3.0.0-alpha9"
+    hash = "sha256-wp7dpzmnjxZiQC3tLyBBb5YGrylW/BYOKSOAa57zAi4="
   [mod."github.com/whyrusleeping/base32"]
     version = "v0.0.0-20170828182744-c30ac30633cc"
     hash = "sha256-DlJl5zgWr2EY3OkGu30ekC3fWvpOnr0PqaPanCSSEhg="
@@ -391,6 +403,9 @@ schema = 3
   [mod."github.com/whyrusleeping/go-keyspace"]
     version = "v0.0.0-20160322163242-5b898ac5add1"
     hash = "sha256-a2V0vuPSQh6d9yoxz07JNJllo1Gm1iDMC3/xjk88czo="
+  [mod."github.com/xrash/smetrics"]
+    version = "v0.0.0-20240312152122-5f08fbb34913"
+    hash = "sha256-ySUTdeoOUi3QcLEJBYvCDIhVrsrD2Ks6/4V9n4hCvBk="
   [mod."go.opencensus.io"]
     version = "v0.24.0"
     hash = "sha256-4H+mGZgG2c9I1y0m8avF4qmt8LUKxxVsTqR8mKgP4yo="

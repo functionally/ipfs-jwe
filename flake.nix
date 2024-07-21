@@ -1,5 +1,5 @@
 {
-  description = "A basic gomod2nix flake";
+  description = "Fetch and decrypt JWE over IPFS.";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";

@@ -1,4 +1,4 @@
-module example.com/gomod2nix-template
+module functionally.dev/ipfs-jwe
 
 go 1.22
 

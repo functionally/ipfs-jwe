@@ -280,7 +280,7 @@ func handleScgiGemini(ctx context.Context, node *rpc.HttpApi, keys map[string]jw
       return
     }
     conn.Close()
-    log.Printf("Sent %d bytes", len(response))
+    log.Printf(". . . sent %d bytes.", len(response))
   }
 
 }
@@ -292,14 +292,14 @@ func scgiGemini(keysFile string, apiAddr string, socketFile string) {
     log.Fatalf("Failed to read keys file: %v", keysErr)
     return
   }
-  log.Printf("Read keys file: %s (%d keys)", keysFile, len(keys))
+  log.Printf("Read %d keys from `%s`.", len(keys), keysFile)
 
   var ctx = context.Background()
   var node, ipfsErr = connectIpfs(apiAddr)
   if ipfsErr != nil {
     log.Fatalf("Failed to connect to IPFS: %v", ipfsErr)
   }
-  log.Printf("Connected to IPFS API: %s", apiAddr)
+  log.Printf("Connected to IPFS API at `%s`.", apiAddr)
 
   if _, socketMissing := os.Stat(socketFile); socketMissing == nil {
     os.Remove(socketFile)
@@ -309,7 +309,7 @@ func scgiGemini(keysFile string, apiAddr string, socketFile string) {
     log.Fatalf("Failed to listen on socket: %v", listenErr)
   }
   defer listener.Close()
-  log.Printf("SCGI server listening on %s", listener.Addr().String())
+  log.Printf("SCGI server listening on `%s`.", listener.Addr().String())
 
   for {
     var conn, acceptErr = listener.Accept()
